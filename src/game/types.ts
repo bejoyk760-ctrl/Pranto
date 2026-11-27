@@ -4,7 +4,7 @@ export type GraphicsQuality = 'auto' | 'high' | 'balanced' | 'eco';
 
 export type TimeMode = 'dynamic' | 'day' | 'sunset' | 'night';
 
-export type WeatherMode = 'clear' | 'rain';
+export type WeatherMode = 'clear' | 'rain' | 'fog';
 
 export type DisplayAspectMode = '16:9' | 'fill';
 

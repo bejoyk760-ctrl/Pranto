@@ -150,7 +150,7 @@ export const StatusModal: React.FC<StatusModalProps> = ({
             <div className="grid grid-cols-2 gap-2">
               <div className="flex flex-col gap-1">
                 <span className="text-[11px] font-medium text-slate-300">Weather</span>
-                <div className="grid grid-cols-2 gap-1 p-1 rounded-lg bg-[#080d1a] border border-white/10">
+                <div className="grid grid-cols-3 gap-1 p-1 rounded-lg bg-[#080d1a] border border-white/10">
                   <button
                     type="button"
                     onClick={() => onWeatherChange('clear')}
@@ -172,6 +172,17 @@ export const StatusModal: React.FC<StatusModalProps> = ({
                     }`}
                   >
                     Rain
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onWeatherChange('fog')}
+                    className={`py-1 text-[11px] font-semibold rounded cursor-pointer ${
+                      weatherMode === 'fog'
+                        ? 'bg-slate-200 text-slate-950'
+                        : 'text-slate-300 hover:bg-white/10'
+                    }`}
+                  >
+                    Fog
                   </button>
                 </div>
               </div>

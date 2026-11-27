@@ -13,7 +13,6 @@ import type {
   HudSnapshot,
   TimeMode,
   TouchInputState,
-  WeatherMode,
 } from './game/types';
 import { TitleOverlay } from './components/TitleOverlay';
 import { GameHud } from './components/GameHud';
@@ -67,7 +66,6 @@ export default function App() {
   const [hud, setHud] = useState<HudSnapshot>(INITIAL_HUD);
   const [quality, setQuality] = useState<GraphicsQuality>('auto');
   const [timeMode, setTimeMode] = useState<TimeMode>('dynamic');
-  const [weatherMode, setWeatherMode] = useState<WeatherMode>('clear');
   const [displayAspect, setDisplayAspect] = useState<DisplayAspectMode>('16:9');
   const [muted, setMuted] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
@@ -173,14 +171,12 @@ export default function App() {
     if (next) setTimeMode(next);
   }, []);
 
-  const handleWeatherChange = useCallback((w: WeatherMode) => {
-    setWeatherMode(w);
+  const handleWeatherChange = useCallback((w: HudSnapshot['weatherMode']) => {
     engineRef.current?.setWeatherMode(w);
   }, []);
 
   const handleCycleWeather = useCallback(() => {
-    const next = engineRef.current?.cycleWeatherMode();
-    if (next) setWeatherMode(next);
+    engineRef.current?.cycleWeatherMode();
   }, []);
 
   const handleToggleFullscreen = useCallback(() => {
@@ -328,7 +324,7 @@ export default function App() {
             hud={hud}
             quality={quality}
             timeMode={timeMode}
-            weatherMode={weatherMode}
+            weatherMode={hud.weatherMode}
             displayAspect={displayAspect}
             hasSave={hasSave}
             onResume={handleResume}

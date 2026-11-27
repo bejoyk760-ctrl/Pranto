@@ -5,6 +5,7 @@ import {
   computeCameraRelativeMove,
   getDayNightParams,
   getInteriorCeilingHeight,
+  getWeatherParams,
   groundHeightAt,
   isOnRoadAsphalt,
   lerpAngle,
@@ -26,6 +27,7 @@ import { SoundEngine } from './audio';
 import { createProceduralTextures, type ProceduralTextureSet } from './textures';
 import { createHumanRig, createVehicleRig, type HumanRig, type VehicleRig } from './models';
 import { buildCityWorld, type CityWorld } from './cityBuilder';
+import { ScreenSpaceWeatherFX } from './weatherParticles';
 import type {
   CharacterAnimState,
   GameMode,
@@ -139,6 +141,7 @@ const _rayDir = new THREE.Vector3();
 const _bgColor = new THREE.Color();
 const _daySky = new THREE.Color(0x5ec6f2);
 const _rainSky = new THREE.Color(0x4b647d);
+const _fogSky = new THREE.Color(0xaec4d4);
 const _sunsetSky = new THREE.Color(0xf9735b);
 const _nightSky = new THREE.Color(0x0d1226);
 const _sunColorDay = new THREE.Color(0xfff7e6);
@@ -236,6 +239,7 @@ export class SolanaBayEngine {
   private particleCursor = 0;
   private rainMesh!: THREE.InstancedMesh;
   private rainDrops: Array<{ x: number; y: number; z: number; speed: number }> = [];
+  private weatherFX!: ScreenSpaceWeatherFX;
 
   // Campaign / progression
   private cash = 0;
@@ -362,6 +366,8 @@ export class SolanaBayEngine {
     this.initCustomWaypointBeacon();
     this.initParticles();
     this.initRain();
+    this.weatherFX = new ScreenSpaceWeatherFX();
+    this.scene.add(this.weatherFX.group);
     this.spawnWorldActors();
 
     this.resetWorldState(false);
@@ -1024,18 +1030,37 @@ export class SolanaBayEngine {
     if (this.rainMesh) {
       this.rainMesh.visible = mode === 'rain';
     }
-    const roadRoughness = mode === 'rain' ? 0.22 : 0.82;
+    const wp = getWeatherParams(mode, false);
     for (const rm of this.city.roadMats) {
-      rm.roughness = roadRoughness;
+      rm.roughness = wp.roadRoughness;
     }
     this.updateLighting(0);
+    if (this.weatherFX && this.mode !== 'playing') {
+      const p = getDayNightParams(this.timeNormalized);
+      const isIndoor = getInteriorCeilingHeight(this.playerX, this.playerZ) !== null;
+      this.weatherFX.update(
+        0,
+        this.elapsedSec,
+        this.camera.aspect,
+        this.weatherMode,
+        0,
+        0,
+        isIndoor,
+        p.sunsetFactor,
+        p.nightFactor,
+        true,
+      );
+    }
     this.pushHudSnapshot();
   }
 
   public cycleWeatherMode(): WeatherMode {
-    const next: WeatherMode = this.weatherMode === 'clear' ? 'rain' : 'clear';
+    const order: WeatherMode[] = ['clear', 'rain', 'fog'];
+    const next = order[(order.indexOf(this.weatherMode) + 1) % order.length];
     this.setWeatherMode(next);
-    this.showBanner(`Weather: ${next === 'rain' ? 'Tropical Rain' : 'Clear Skies'}`, 1.8);
+    const label =
+      next === 'rain' ? 'Tropical Rain' : next === 'fog' ? 'Coastal Fog' : 'Clear Skies';
+    this.showBanner(`Weather: ${label}`, 1.8);
     return next;
   }
 
@@ -1264,6 +1289,7 @@ export class SolanaBayEngine {
       this.updateTrafficSignals();
       this.updateAmbientWorld(dt);
       this.updateTitleCamera(dt);
+      this.updateScreenSpaceWeather(dt, 0.25, 0);
       this.renderer.render(this.scene, this.camera);
     } else if (this.mode === 'playing') {
       this.elapsedSec += dt;
@@ -1277,10 +1303,20 @@ export class SolanaBayEngine {
       this.updateParticles(dt);
       this.updateRain(dt);
       this.updateGameplayCamera(dt);
+      const speedRatio = this.currentVehicle
+        ? Math.min(1.4, Math.abs(this.currentVehicle.speed) / 22)
+        : this.animState === 'run'
+          ? 0.45
+          : this.animState === 'walk'
+            ? 0.22
+            : 0;
+      const steerHint = this.currentVehicle ? this.currentVehicle.steerVisual : 0;
+      this.updateScreenSpaceWeather(dt, speedRatio, steerHint);
       this.sound.updateAmbient(
         true,
         Math.abs(SHORE_X - this.playerX),
         this.weatherMode === 'rain',
+        this.weatherMode === 'fog',
       );
       this.renderer.render(this.scene, this.camera);
 
@@ -1302,12 +1338,37 @@ export class SolanaBayEngine {
     this.scheduleNextTick();
   }
 
+  private updateScreenSpaceWeather(dt: number, speedRatio: number, steerHint: number): void {
+    if (!this.weatherFX) return;
+    const p = getDayNightParams(this.timeNormalized);
+    const isIndoor =
+      this.mode === 'playing' &&
+      !this.currentVehicle &&
+      getInteriorCeilingHeight(this.playerX, this.playerZ) !== null;
+    this.weatherFX.update(
+      dt,
+      this.elapsedSec,
+      this.camera.aspect,
+      this.weatherMode,
+      speedRatio,
+      steerHint,
+      isIndoor,
+      p.sunsetFactor,
+      p.nightFactor,
+    );
+    if (this.rainMesh) {
+      this.rainMesh.visible = this.weatherMode === 'rain' && !isIndoor;
+    }
+  }
+
   private updateLighting(dt: number): void {
     if (this.timeMode === 'dynamic') {
       this.timeNormalized = (this.timeNormalized + dt * 0.0083) % 1;
     }
     const p = getDayNightParams(this.timeNormalized);
+    const wp = getWeatherParams(this.weatherMode, false);
     const isRain = this.weatherMode === 'rain';
+    const isFog = this.weatherMode === 'fog';
 
     if (p.nightFactor > 0.01) {
       _bgColor.copy(_sunsetSky).lerp(_nightSky, p.nightFactor);
@@ -1316,10 +1377,12 @@ export class SolanaBayEngine {
     }
     if (isRain) {
       _bgColor.lerp(_rainSky, 0.58 * (1 - p.nightFactor * 0.6));
+    } else if (isFog) {
+      _bgColor.lerp(_fogSky, 0.68 * (1 - p.nightFactor * 0.62));
     }
     this.scene.background = _bgColor;
     this.fog.color.copy(_bgColor);
-    this.fog.density = 0.0024 + p.nightFactor * 0.0014 + (isRain ? 0.0032 : 0);
+    this.fog.density = 0.0024 + p.nightFactor * 0.0014 + wp.fogDensityAdd;
 
     const sunDist = 85;
     const sunElevY = Math.max(0.18, p.sunElevation) * sunDist;
@@ -1331,17 +1394,17 @@ export class SolanaBayEngine {
       targetZ + 32,
     );
     this.sunLight.target.position.set(targetX, 0, targetZ);
-    this.sunLight.intensity = p.sunIntensity * (isRain ? 0.52 : 1.0);
+    this.sunLight.intensity = p.sunIntensity * wp.sunAttenuation;
     this.sunLight.color
       .copy(_sunColorDay)
       .lerp(_sunColorSunset, p.sunsetFactor)
       .lerp(_sunColorNight, p.nightFactor * 0.8);
 
-    this.hemiLight.intensity = p.hemiIntensity * (isRain ? 0.85 : 1.0);
+    this.hemiLight.intensity = p.hemiIntensity * wp.hemiAttenuation;
     this.hemiLight.color.copy(_hemiSkyDay).lerp(_hemiSkyNight, p.nightFactor);
     this.hemiLight.groundColor.copy(_hemiGroundDay).lerp(_hemiGroundNight, p.nightFactor);
 
-    const glow = Math.min(1, p.nightFactor + p.sunsetFactor * 0.45 + (isRain ? 0.25 : 0));
+    const glow = Math.min(1, p.nightFactor + p.sunsetFactor * 0.45 + wp.glowBoost);
     for (const m of this.city.neonMats) m.emissiveIntensity = 0.35 + glow * 1.15;
     for (const m of this.city.windowMats) m.emissiveIntensity = 0.08 + p.nightFactor * 0.95;
     for (const m of this.city.lampMats) m.emissiveIntensity = 0.15 + glow * 1.4;
@@ -2539,6 +2602,7 @@ export class SolanaBayEngine {
 
     this.sound.dispose();
     this.textures.dispose();
+    this.weatherFX?.dispose();
     this.scene.traverse((obj) => {
       if ((obj as THREE.Mesh).isMesh) {
         const m = obj as THREE.Mesh;

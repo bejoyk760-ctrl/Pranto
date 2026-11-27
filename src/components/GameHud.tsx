@@ -117,8 +117,8 @@ export const GameHud: React.FC<GameHudProps> = ({
             <button
               type="button"
               tabIndex={-1}
-              aria-label="Cycle weather"
-              title="Toggle Clear / Rain [R]"
+              aria-label={`Cycle weather (current: ${hud.weatherMode})`}
+              title="Cycle Clear / Rain / Fog [R]"
               onClick={(e) => {
                 e.currentTarget.blur();
                 onCycleWeather();
@@ -126,13 +126,24 @@ export const GameHud: React.FC<GameHudProps> = ({
               className={`hidden @md:flex w-8 h-8 @3xl:w-9 @3xl:h-9 rounded-lg border items-center justify-center cursor-pointer ${
                 hud.weatherMode === 'rain'
                   ? 'bg-cyan-500/25 border-cyan-300 text-cyan-200'
-                  : 'bg-[rgba(9,13,22,0.82)] border-white/15 hover:border-white/40 text-sky-300'
+                  : hud.weatherMode === 'fog'
+                    ? 'bg-slate-400/25 border-slate-200 text-slate-100'
+                    : 'bg-[rgba(9,13,22,0.82)] border-white/15 hover:border-white/40 text-sky-300'
               }`}
             >
               <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z" />
-                {hud.weatherMode === 'rain' && (
-                  <path d="M9 19l-1 3M13 19l-1 3M17 19l-1 3" strokeLinecap="round" />
+                {hud.weatherMode === 'fog' ? (
+                  <>
+                    <path d="M5 10h14a3 3 0 0 0 0-6h-1a4 4 0 0 0-7.6-1.2" strokeLinecap="round" />
+                    <path d="M3 14h18M5 18h14M7 21h10" strokeLinecap="round" />
+                  </>
+                ) : (
+                  <>
+                    <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z" />
+                    {hud.weatherMode === 'rain' && (
+                      <path d="M9 19l-1 3M13 19l-1 3M17 19l-1 3" strokeLinecap="round" />
+                    )}
+                  </>
                 )}
               </svg>
             </button>

@@ -181,7 +181,7 @@ export const TitleOverlay: React.FC<TitleOverlayProps> = ({
       </div>
 
       <div className="text-[11px] sm:text-xs text-slate-200/90 hud-text-shadow pt-2">
-        WASD Move · Space Jump · Shift Sprint · E Interact / Enter · Tab Map · R Rain · Esc Pause
+        WASD Move · Space Jump · Shift Sprint · E Interact / Enter · Tab Map · R Weather · Esc Pause
       </div>
     </div>
   );

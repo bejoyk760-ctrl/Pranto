@@ -49,7 +49,12 @@ export class SoundEngine {
     this.ensureContext();
   }
 
-  public updateAmbient(active: boolean, distToShore: number, isRaining: boolean): void {
+  public updateAmbient(
+    active: boolean,
+    distToShore: number,
+    isRaining: boolean,
+    isFoggy = false,
+  ): void {
     if (this.muted || !active || !this.ctx) {
       if (this.ambientGain && this.ctx) {
         this.ambientGain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.08);
@@ -95,11 +100,16 @@ export class SoundEngine {
 
     const surfFactor = Math.max(0, 1 - distToShore / 68);
     const rainGain = isRaining ? 0.034 : 0;
-    const surfGain = 0.008 + surfFactor * 0.022;
-    const targetFreq = isRaining ? 1250 : 320 + surfFactor * 260;
+    const fogGain = isFoggy ? 0.012 : 0;
+    const surfGain = (isFoggy ? 0.005 : 0.008) + surfFactor * 0.022;
+    const targetFreq = isRaining ? 1250 : isFoggy ? 240 + surfFactor * 160 : 320 + surfFactor * 260;
 
     this.ambientFilter.frequency.setTargetAtTime(targetFreq, ctx.currentTime, 0.2);
-    this.ambientGain.gain.setTargetAtTime(Math.min(0.052, surfGain + rainGain), ctx.currentTime, 0.2);
+    this.ambientGain.gain.setTargetAtTime(
+      Math.min(0.052, surfGain + rainGain + fogGain),
+      ctx.currentTime,
+      0.2,
+    );
   }
 
   public playFootstep(sprinting: boolean): void {

@@ -1,4 +1,4 @@
-import type { BoxCollider } from './types';
+import type { BoxCollider, WeatherMode } from './types';
 
 export const ROAD_X = [-96, -48, 0, 48] as const;
 export const ROAD_Z = [-96, -48, 0, 48, 96] as const;
@@ -333,3 +333,53 @@ export function getDayNightParams(tNorm: number): {
     label,
   };
 }
+
+export interface WeatherParams {
+  rainIntensity: number;
+  fogIntensity: number;
+  fogDensityAdd: number;
+  sunAttenuation: number;
+  hemiAttenuation: number;
+  roadRoughness: number;
+  glowBoost: number;
+}
+
+/**
+ * Computes deterministic atmospheric and screen-space particle intensities
+ * for clear, rain, and fog weather modes, attenuating particles indoors.
+ */
+export function getWeatherParams(weather: WeatherMode, isIndoor: boolean): WeatherParams {
+  const indoorScale = isIndoor ? 0.16 : 1.0;
+  if (weather === 'rain') {
+    return {
+      rainIntensity: 1.0 * indoorScale,
+      fogIntensity: 0.24 * indoorScale,
+      fogDensityAdd: 0.0034,
+      sunAttenuation: 0.52,
+      hemiAttenuation: 0.85,
+      roadRoughness: 0.22,
+      glowBoost: 0.28,
+    };
+  }
+  if (weather === 'fog') {
+    return {
+      rainIntensity: 0,
+      fogIntensity: 1.0 * indoorScale,
+      fogDensityAdd: 0.0128,
+      sunAttenuation: 0.44,
+      hemiAttenuation: 0.92,
+      roadRoughness: 0.56,
+      glowBoost: 0.45,
+    };
+  }
+  return {
+    rainIntensity: 0,
+    fogIntensity: 0,
+    fogDensityAdd: 0,
+    sunAttenuation: 1.0,
+    hemiAttenuation: 1.0,
+    roadRoughness: 0.82,
+    glowBoost: 0,
+  };
+}
+

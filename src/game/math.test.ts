@@ -7,6 +7,7 @@ import {
   getInteriorCeilingHeight,
   resolveCircleColliders,
   getDayNightParams,
+  getWeatherParams,
   CANAL_Z,
   BRIDGE_HEIGHT,
   PIER_HEIGHT,
@@ -158,5 +159,28 @@ test('getInteriorCeilingHeight detects Mint Flamingo Lobby and Sunset Surf Cafe 
   assert.equal(getInteriorCeilingHeight(24, 24), 4.15);
   // Outside on Ocean Drive sidewalk
   assert.equal(getInteriorCeilingHeight(40, 14), null);
+});
+
+test('getWeatherParams differentiates clear, rain, and fog modes and attenuates indoors', () => {
+  const clear = getWeatherParams('clear', false);
+  assert.equal(clear.rainIntensity, 0);
+  assert.equal(clear.fogIntensity, 0);
+  assert.equal(clear.fogDensityAdd, 0);
+
+  const rain = getWeatherParams('rain', false);
+  assert.equal(rain.rainIntensity, 1);
+  assert.ok(rain.fogIntensity > 0 && rain.fogIntensity < 0.5);
+  assert.ok(rain.roadRoughness < 0.3);
+
+  const fog = getWeatherParams('fog', false);
+  assert.equal(fog.rainIntensity, 0);
+  assert.equal(fog.fogIntensity, 1);
+  assert.ok(fog.fogDensityAdd > rain.fogDensityAdd);
+
+  const indoorRain = getWeatherParams('rain', true);
+  assert.ok(indoorRain.rainIntensity < 0.25);
+
+  const indoorFog = getWeatherParams('fog', true);
+  assert.ok(indoorFog.fogIntensity < 0.25);
 });
 
