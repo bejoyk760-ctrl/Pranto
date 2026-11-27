@@ -1,0 +1,6 @@
+{
+  "name": "Solana Bay — Coastal Open-World 3D",
+  "description": "A tropical coastal 3D open-world city exploration game with third-person movement, traffic, drivable vehicles, missions, dynamic day-night cycle, and mobile touch controls.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
